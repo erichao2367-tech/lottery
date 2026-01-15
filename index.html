@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Felixida 幸運轉盤 v7.6(靜音流暢版)</title>
+    <title>Felixida 幸運轉盤 v7.7 (完美比例修復版)</title>
     <style>
         :root {
             --bg-gradient-start: #ff9966;
@@ -113,6 +113,7 @@
             position: relative;
             width: 90%;
             max-width: 600px;
+            /* 關鍵修復：強制 1:1 比例 */
             aspect-ratio: 1 / 1; 
             border-radius: 50%;
             padding: 15px;
@@ -122,6 +123,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            /* 關鍵修復：防止被擠壓 */
+            flex-shrink: 0; 
         }
 
         .wheel-container {
@@ -293,31 +296,43 @@
         .winner-name { font-size: 2.5rem; font-weight: 800; color: var(--primary); margin: 10px 0; }
         .prize-display { font-size: 1.2rem; color: #b3541e; font-weight: bold; margin-bottom: 20px; }
 
-        /* --- 手機版 RWD 調整 --- */
+        /* --- 手機版 RWD 調整 (重點修正區) --- */
         @media (max-width: 850px) {
             body {
-                align-items: flex-start;
-                padding-top: 20px;
-                padding-bottom: 20px;
+                /* 讓手機版內容自然從上往下排，且可以捲動 */
+                display: block; 
                 height: auto; 
                 overflow-y: auto; 
+                padding-top: 20px;
+                padding-bottom: 50px;
             }
             .container {
-                flex-direction: column-reverse; 
+                display: flex;
+                flex-direction: column; /* 垂直排列 */
                 height: auto; 
                 gap: 30px;
             }
-            .winners-panel {
-                width: 100%; max-width: 100%; 
-                height: 400px; 
-            }
             .wheel-section {
+                order: 1; /* 轉盤在上面 */
                 width: 100%;
                 margin-top: 20px;
+                flex: none; /* 關閉彈性伸縮 */
             }
             .wheel-border {
+                /* 手機版：寬度 90%，但限制最大 400px，確保它是正圓 */
                 width: 90vw;
                 max-width: 400px; 
+                aspect-ratio: 1 / 1; 
+                height: auto;
+                margin: 0 auto; /* 置中 */
+            }
+            .winners-panel {
+                order: 2; /* 榜單在下面 */
+                width: 95%; 
+                max-width: 100%; 
+                height: 300px; /* 給定高度讓它可以捲動 */
+                flex: none;
+                margin: 0 auto; /* 置中 */
             }
             .announce-prize-name { font-size: 3rem; }
             .settings-fab { top: 15px; right: 15px; width: 50px; height: 50px; font-size: 24px; }
@@ -431,7 +446,6 @@ Amy</textarea>
                 audioCtx.resume();
             }
         },
-        // 已移除 playTick (齒輪聲)
         playWin: function() {
             if (!audioCtx) return;
             const notes = [523.25, 659.25, 783.99, 1046.50];
@@ -580,8 +594,6 @@ Amy</textarea>
         currentRotation += spinVelocityNum;
         canvas.style.transform = `rotate(${currentRotation}deg)`;
 
-        // 已移除齒輪聲判定邏輯
-
         animationFrameId = requestAnimationFrame(rotateWheelLoop);
     }
 
@@ -662,4 +674,3 @@ Amy</textarea>
 
 </body>
 </html>
-
