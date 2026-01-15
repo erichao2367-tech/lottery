@@ -1,0 +1,723 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Felixida 幸運轉盤 v7.4 (最終完成版)</title>
+    <style>
+        :root {
+            /* 品牌色系：橘色為主 */
+            --bg-gradient-start: #ff9966;
+            --bg-gradient-end: #ff5e62;
+            --primary: #e65100; /* 深橘 (亮橘) */
+            --accent: #ffd700; /* 金色 */
+            --panel-bg: rgba(255, 255, 255, 0.95);
+            --text-main: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            gap: 40px;
+            max-width: 1200px;
+            width: 100%;
+            height: 90vh;
+            align-items: center;
+        }
+
+        /* --- 左側：華麗中獎名單 --- */
+        .winners-panel {
+            flex: 1;
+            max-width: 350px;
+            height: 80%;
+            background: var(--panel-bg);
+            border: 4px solid var(--accent);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .panel-header {
+            text-align: center;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            color: #b3541e;
+            font-size: 1.8rem;
+            text-shadow: 1px 1px 0px rgba(255, 215, 0, 0.5);
+        }
+
+        .winner-list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .winner-list-container::-webkit-scrollbar { width: 6px; }
+        .winner-list-container::-webkit-scrollbar-thumb { background-color: var(--accent); border-radius: 3px; }
+
+        .winner-item {
+            background: white;
+            border-left: 5px solid var(--primary);
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .w-name { font-weight: bold; font-size: 1.1rem; color: #333; }
+        .w-prize { font-size: 0.9rem; color: #666; }
+
+        /* --- 右側：轉盤區 --- */
+        .wheel-section {
+            flex: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .wheel-border {
+            position: relative;
+            width: 90%;
+            max-width: 600px;
+            aspect-ratio: 1/1;
+            border-radius: 50%;
+            padding: 15px;
+            background: conic-gradient(
+                #ff9f43, #ee5253, #ff9f43, #ee5253, #ff9f43
+            );
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            border: 5px solid #fff;
+        }
+
+        .wheel-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: white;
+            position: relative;
+            overflow: hidden;
+            border: 5px solid white;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 60px;
+            z-index: 20;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));
+        }
+
+        .pointer::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #d63031;
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+            border-top: 5px solid #b71c1c;
+        }
+
+        /* 中間 Logo 按鈕 */
+        .center-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 140px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 8px rgba(255,255,255,0.5), 0 10px 20px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+            cursor: pointer;
+            overflow: hidden;
+            border: 2px solid #eee;
+            transition: transform 0.1s;
+        }
+
+        .center-btn:active { transform: translate(-50%, -50%) scale(0.95); }
+
+        .center-logo {
+            width: 90%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* --- 右上角設定按鈕 --- */
+        .settings-fab {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 90;
+            transition: transform 0.3s;
+        }
+        .settings-fab:hover { transform: rotate(90deg); }
+
+        /* --- 通用彈出視窗樣式 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        /* 一般視窗(設定、預告)恢復正常比例 */
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        /* --- 需求 4: 轉完的結果視窗放大兩倍 --- */
+        #resultModal.active .modal-content {
+            transform: scale(2) !important; 
+            max-width: 400px; 
+        }
+        
+        @media (max-width: 600px) {
+            #resultModal.active .modal-content {
+                transform: scale(1.5) !important; 
+            }
+        }
+
+        /* --- 需求 1: 統一用白色的視窗公布獎品 (預告視窗) --- */
+        .modal-flashy {
+            background: #ffffff;
+            border: 6px solid var(--accent);
+            color: var(--text-main);
+            max-width: 600px; 
+            width: 95%;
+            padding: 50px 30px;
+        }
+        
+        .modal-flashy h2 {
+            font-size: 2.5rem;
+            text-shadow: none;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+        
+        .announce-prize-name {
+            font-size: 4rem; 
+            font-weight: 900;
+            color: #b3541e;
+            text-shadow: none;
+            margin: 30px 0 50px 0;
+            line-height: 1.2;
+            border-bottom: 2px dashed #eee;
+            padding-bottom: 20px;
+        }
+        
+        .btn-large {
+            padding: 15px 50px;
+            font-size: 1.5rem;
+            border-radius: 50px;
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 8px 20px rgba(230, 81, 0, 0.3);
+            transition: all 0.3s;
+            border: none;
+        }
+        .btn-large:hover {
+            transform: scale(1.05);
+            background: #ef6c00;
+            box-shadow: 0 12px 25px rgba(230, 81, 0, 0.4);
+        }
+        
+        .animate-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(230, 81, 0, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(230, 81, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(230, 81, 0, 0); }
+        }
+
+        /* --- 設定視窗樣式 --- */
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
+        textarea {
+            width: 100%; height: 100px; padding: 10px;
+            border: 1px solid #ddd; border-radius: 8px;
+            resize: vertical;
+        }
+        .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        
+        button {
+            padding: 10px 20px; border: none; border-radius: 8px;
+            cursor: pointer; font-weight: bold; font-size: 1rem;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: #eee; color: #333; }
+
+        /* --- 中獎視窗樣式 (白底) --- */
+        .winner-name {
+            font-size: 2.5rem; font-weight: 800; color: var(--primary);
+            margin: 10px 0;
+        }
+        .prize-display {
+            font-size: 1.2rem; color: #b3541e; font-weight: bold; margin-bottom: 20px;
+        }
+
+        /* RWD */
+        @media (max-width: 850px) {
+            .container { flex-direction: column-reverse; height: auto; }
+            .winners-panel { width: 100%; max-width: 100%; height: 300px; }
+            .wheel-section { width: 100%; }
+            .announce-prize-name { font-size: 3rem; }
+            /* 手機版設定按鈕調整位置 */
+            .settings-fab { top: 10px; right: 10px; width: 50px; height: 50px; font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="winners-panel">
+        <div class="panel-header">
+            <h2>🏆 榮譽榜單</h2>
+            <div style="font-size: 0.9rem; color: #666; margin-top:5px;">
+                剩餘人數：<span id="countNames">0</span> | 剩餘獎項：<span id="countPrizes">0</span>
+            </div>
+        </div>
+        <div class="winner-list-container" id="historyList">
+            </div>
+    </div>
+
+    <div class="wheel-section">
+        <div class="wheel-border">
+            <div class="wheel-container">
+                <canvas id="wheelCanvas" width="800" height="800"></canvas>
+            </div>
+            <div class="pointer"></div>
+            <div class="center-btn" onclick="triggerPrizeAnnouncement()">
+                <img src="image_dff46b.png" alt="GO Logo" class="center-logo" onerror="this.style.display='none'; this.parentNode.innerHTML='<div style=\'font-weight:bold; color:#e65100; font-size:24px;\'>GO</div>'">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="settings-fab" onclick="openSettings()">⚙️</div>
+
+<div class="modal-overlay" id="prizeAnnounceModal">
+    <div class="modal-content modal-flashy">
+        <h2>🎁 即將抽出 🎁</h2>
+        <div class="announce-prize-name" id="announcePrizeText">---</div>
+        <button class="btn-primary btn-large animate-pulse" onclick="confirmStartSpin()">開始轉動!</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal-content">
+        <h2 style="margin-top:0; color:#333;">⚙️ 抽獎設定</h2>
+        <div class="input-group">
+            <label>📋 參加名單</label>
+            <textarea id="namesInput">王小明
+李大華
+陳雅婷
+張偉
+Lisa
+Tom
+Alex
+Sara
+Kevin
+Amy</textarea>
+        </div>
+        <div class="input-group">
+            <label>🎁 獎項清單</label>
+            <textarea id="prizesInput">頭獎：現金一萬
+二獎：高級耳機
+三獎：百貨禮券
+普獎：精美筆記本</textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="resetData()">重置</button>
+            <button class="btn-primary" onclick="closeSettings()">儲存並關閉</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="resultModal">
+    <div class="modal-content">
+        <div style="color:#888; font-size: 0.8rem;">🎉 恭喜得獎 🎉</div>
+        <div class="winner-name" id="modalWinner">---</div>
+        <div class="prize-display" id="modalPrize">---</div>
+        <button class="btn-primary" onclick="closeResultModal()" style="font-size: 0.8rem;">下一位</button>
+    </div>
+</div>
+
+<script>
+    // 變數
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const namesInput = document.getElementById('namesInput');
+    const prizesInput = document.getElementById('prizesInput');
+
+    let names = [];
+    let prizes = [];
+    let isSpinning = false;
+    let startAngle = 0;
+    let arc = 0;
+    let spinTime = 0;
+    let spinTimeTotal = 0;
+    let spinVelocity = 0;
+    let currentPrizeToDraw = ""; 
+    
+    // 需求 2: 顏色庫 & 不連號顏色陣列
+    const palette = ['#e65100', '#ffb74d', '#ffffff', '#ffcc80', '#ffe0b2', '#f57c00'];
+    let segmentColors = [];
+
+    // 需求 3: 音效系統 (使用 Web Audio API)
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    const SoundEffect = {
+        init: function() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        },
+        playTick: function() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.05);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        },
+        playWin: function() {
+            if (!audioCtx) return;
+            // 簡單的勝利音效 (Do-Mi-So-Do)
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            let time = audioCtx.currentTime;
+            
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.value = freq;
+                
+                gain.gain.setValueAtTime(0.2, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(time);
+                osc.stop(time + 0.2);
+                time += 0.15; // 間隔
+            });
+        }
+    };
+
+    window.onload = () => {
+        updateData(); // 初始化
+    };
+
+    function openSettings() { document.getElementById('settingsModal').classList.add('active'); }
+    function closeSettings() { 
+        document.getElementById('settingsModal').classList.remove('active'); 
+        updateData(); 
+    }
+
+    function updateData() {
+        names = namesInput.value.split('\n').map(n => n.trim()).filter(n => n !== '');
+        prizes = prizesInput.value.split('\n').map(p => p.trim()).filter(p => p !== '');
+        
+        document.getElementById('countNames').innerText = names.length;
+        document.getElementById('countPrizes').innerText = prizes.length;
+        
+        generateSafeColors(); // 生成顏色
+        drawWheel();
+    }
+    
+    // 需求 2: 生成不相鄰顏色的邏輯
+    function generateSafeColors() {
+        segmentColors = [];
+        if (names.length === 0) return;
+
+        for (let i = 0; i < names.length; i++) {
+            let available = palette.filter(c => {
+                // 不能跟上一個一樣
+                if (i > 0 && c === segmentColors[i-1]) return false;
+                // 如果是最後一個，不能跟第一個一樣
+                if (i === names.length - 1 && names.length > 1 && c === segmentColors[0]) return false;
+                return true;
+            });
+            
+            // 隨機選一個
+            let pick = available[Math.floor(Math.random() * available.length)];
+            if (!pick) pick = palette[Math.floor(Math.random() * palette.length)];
+            
+            segmentColors.push(pick);
+        }
+    }
+
+    function resetData() {
+        if(confirm("確定重置？")) {
+            location.reload(); 
+        }
+    }
+
+    function drawWheel() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const radius = cx - 10;
+        
+        if (names.length === 0) {
+            ctx.font = "bold 40px Arial";
+            ctx.fillStyle = "#888";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("請輸入名單", cx, cy);
+            return;
+        }
+
+        arc = Math.PI * 2 / names.length;
+
+        for (let i = 0; i < names.length; i++) {
+            const angle = startAngle + i * arc;
+            const currentColor = segmentColors[i];
+            
+            // 扇形
+            ctx.fillStyle = currentColor;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius, angle, angle + arc, false);
+            ctx.fill();
+            ctx.stroke();
+
+            // 文字
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle + arc / 2 + Math.PI / 2);
+            
+            const isLight = (currentColor === '#ffffff' || currentColor === '#ffb74d' || currentColor === '#ffcc80' || currentColor === '#ffe0b2');
+            ctx.fillStyle = isLight ? "#e65100" : "#ffffff";
+            
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle"; 
+            
+            let fontSize = names.length > 20 ? 24 : 36;
+            ctx.font = `bold ${fontSize}px "Microsoft JhengHei"`;
+            
+            if(!isLight) {
+                ctx.shadowColor = "rgba(0,0,0,0.5)";
+                ctx.shadowBlur = 4;
+            }
+
+            ctx.fillText(names[i], 0, -radius * 0.75);
+            ctx.restore();
+        }
+    }
+
+    // --- 觸發獎項預告 ---
+    function triggerPrizeAnnouncement() {
+        SoundEffect.init();
+
+        if (isSpinning || names.length === 0) return;
+        currentPrizeToDraw = prizes.length > 0 ? prizes[0] : "幸運獎（加碼）";
+        document.getElementById('announcePrizeText').innerText = currentPrizeToDraw;
+        document.getElementById('prizeAnnounceModal').classList.add('active');
+    }
+
+    // --- 確認後開始轉動 ---
+    function confirmStartSpin() {
+        document.getElementById('prizeAnnounceModal').classList.remove('active');
+        executeSpin();
+    }
+
+    function executeSpin() {
+        isSpinning = true;
+        spinTime = 0;
+        spinTimeTotal = (Math.random() * 1000) + 3000; // 3 ~ 4 秒
+        spinVelocity = 40; 
+        lastBeepIndex = -1;
+        rotateWheel();
+    }
+
+    let lastBeepIndex = -1;
+
+    function rotateWheel() {
+        spinTime += 20;
+        if(spinTime >= spinTimeTotal) {
+            stopRotateWheel();
+            return;
+        }
+        const progress = spinTime / spinTimeTotal;
+        const angleChange = (spinVelocity * (1 - Math.pow(progress, 3))); 
+        startAngle += (angleChange * Math.PI / 180);
+        
+        // 需求 3: 齒輪音效判斷
+        const currentRotation = startAngle + Math.PI / 2;
+        const currentIndex = Math.floor(currentRotation / arc);
+
+        if (currentIndex !== lastBeepIndex) {
+            SoundEffect.playTick();
+            lastBeepIndex = currentIndex;
+        }
+
+        drawWheel();
+        requestAnimationFrame(rotateWheel);
+    }
+
+    function stopRotateWheel() {
+        isSpinning = false;
+        const degrees = startAngle * 180 / Math.PI + 90;
+        const arcd = arc * 180 / Math.PI;
+        const index = Math.floor((360 - degrees % 360) / arcd) % names.length;
+        const winnerName = names[index];
+        
+        if (prizes.length > 0) {
+            prizes.shift();
+            prizesInput.value = prizes.join('\n');
+        }
+        
+        // 需求 3: 播放勝利音效
+        SoundEffect.playWin();
+
+        showResult(winnerName, currentPrizeToDraw);
+        
+        names.splice(index, 1);
+        namesInput.value = names.join('\n');
+    }
+
+    // 顯示結果與榜單
+    const resultModal = document.getElementById('resultModal');
+    function showResult(name, prize) {
+        document.getElementById('modalWinner').innerText = name;
+        document.getElementById('modalPrize').innerText = prize;
+        resultModal.classList.add('active');
+        
+        const div = document.createElement('div');
+        div.className = 'winner-item';
+        div.innerHTML = `<span class="w-name">${name}</span><span class="w-prize">${prize}</span>`;
+        const list = document.getElementById('historyList');
+        list.insertBefore(div, list.firstChild);
+        
+        createConfetti();
+    }
+
+    function closeResultModal() {
+        resultModal.classList.remove('active');
+        updateData(); 
+    }
+
+    // 彩帶特效
+    function createConfetti() {
+        const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#F78FB3', '#ffd700', '#ffffff'];
+        for (let i = 0; i < 70; i++) {
+            const confetti = document.createElement('div');
+            const size = Math.random() * 8 + 5 + 'px';
+            const startLeft = Math.random() * 100 + 'vw';
+            const endLeft = (parseFloat(startLeft) + (Math.random() * 20 - 10)) + 'vw';
+            const duration = Math.random() * 1.5 + 1.5 + 's';
+            
+            confetti.style.cssText = `
+                position: fixed; top: -20px; width: ${size}; height: ${size};
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                left: ${startLeft}; z-index: 999;
+                opacity: 1; transform: rotate(${Math.random()*360}deg);
+                transition: top ${duration} ease-out, left ${duration} ease-in-out, opacity ${duration} ease-in, transform ${duration} linear;
+            `;
+            document.body.appendChild(confetti);
+
+            setTimeout(() => {
+                confetti.style.top = '110vh';
+                confetti.style.left = endLeft;
+                confetti.style.opacity = '0';
+                confetti.style.transform = `rotate(${Math.random()*720}deg)`;
+            }, 50);
+
+            setTimeout(() => confetti.remove(), 3000);
+        }
+    }
+</script>
+
+</body>
+</html>
